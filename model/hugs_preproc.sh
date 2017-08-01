@@ -69,7 +69,7 @@ python trainer/preprocess.py \
   --input_path "gs://oscon-tf-workshop-materials/transfer_learning/cloudml/hugs_photos/eval_data.csv" \
   --output_path "${GCS_PATH}/preproc/eval" \
   --job_name "${DFJOB_ID}e" \
-  --num_workers 3 \
+  --num_workers 10 \
   --cloud
 
 python trainer/preprocess.py \
@@ -77,7 +77,7 @@ python trainer/preprocess.py \
   --input_path "gs://oscon-tf-workshop-materials/transfer_learning/cloudml/hugs_photos/train_data.csv" \
   --output_path "${GCS_PATH}/preproc/train" \
   --job_name "${DFJOB_ID}t" \
-  --num_workers 3 \
+  --num_workers 10 \
   --cloud
 
 set +v
