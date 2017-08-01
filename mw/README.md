@@ -1,4 +1,4 @@
-#Middleware for Mnist classify service prototype
+# Middleware for Mnist classify service prototype
 
 The middleware files are used to prototype a simple end to end MNIST model and serv setup. The directory names used are to make the integration points clear
 
@@ -21,7 +21,13 @@ The nginx server is secured using instructions available
 1. ssl cert generation at https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-nginx-in-ubuntu-16-04
 2. authentication at https://www.digitalocean.com/community/tutorials/how-to-set-up-basic-http-authentication-with-nginx-on-ubuntu-14-04
 The default username/password is available in the postcloud.sh script
+The current public ip address of the instance is also available in postcloud.sh
 
 # web.py server
 The web.py server is started using a screen command so that it stays up
 https://www.mattcutts.com/blog/a-quick-tutorial-on-screen/
+
+# deployment
+The current deployment is for prototyping purposes
+The final deployment would be a docker container which includes the required files
+When deployed it would be accessed via gcloud LB
