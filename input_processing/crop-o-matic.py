@@ -18,11 +18,9 @@ import sys
 import tensorflow as tf
 
 # Append ASAP to PYHONPATH prior to import
-
 sys.path.append("/opt/ASAP/bin")
 
 import multiresolutionimageinterface as mir
-
 
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
@@ -105,13 +103,14 @@ for annotation in annotation_list.getAnnotations():
                 mask_full_bw = np.repeat(mask_full * 255, 3, axis=2) # Convert the mask in to a black-n-white array.
 
                 # Write images.
-                misc.imsave("patch_%05d_A_%d_%d_patch.png" % (crop_cnt, x, y),  patch_a)
-                misc.imsave("patch_%05d_B_%d_%d_patch.png" % (crop_cnt, x + args.dim, y),  patch_b)
-                misc.imsave("patch_%05d_C_%d_%d_patch.png" % (crop_cnt, x, y + args.dim),  patch_c)
-                misc.imsave("patch_%05d_D_%d_%d_patch.png" % (crop_cnt, x + args.dim, y + args.dim),  patch_d)
-                misc.imsave("patch_%05d_D_%d_%d_patch_low.png" % (crop_cnt, x, y),  patch_low)
-                misc.imsave("patch_%05d_%d_%d_patch.png" % (crop_cnt, x, y),  patch_full)
-                misc.imsave("patch_%05d_%d_%d_mask.png" % (crop_cnt, x, y),  mask_full_bw)
+                fname = os.path.basename(args.data).split(".")[0]
+                misc.imsave("%s_patch_%05d_A_%d_%d.png" % (fname, crop_cnt, x, y),  patch_a)
+                misc.imsave("%s_patch_%05d_B_%d_%d.png" % (fname, crop_cnt, x + args.dim, y),  patch_b)
+                misc.imsave("%s_patch_%05d_C_%d_%d.png" % (fname, crop_cnt, x, y + args.dim),  patch_c)
+                misc.imsave("%s_patch_%05d_D_%d_%d.png" % (fname, crop_cnt, x + args.dim, y + args.dim),  patch_d)
+                misc.imsave("%s_patch_%05d_D_%d_%d_low.png" % (fname, crop_cnt, x, y),  patch_low)
+                misc.imsave("%s_patch_%05d_%d_%d.png" % (fname, crop_cnt, x, y),  patch_full)
+                misc.imsave("%s_mask_%05d_%d_%d_mask.png" % (fname, crop_cnt, x, y),  mask_full_bw)
 
                 # Calculate areas
                 metastases_area_a = np.count_nonzero(mask_a) / (args.dim * args.dim)
@@ -127,6 +126,7 @@ for annotation in annotation_list.getAnnotations():
                     'crop_top_right': _bytes_feature(patch_b.tostring()),
                     'crop_bottom_left': _bytes_feature(patch_c.tostring()),
                     'crop_bottom_right': _bytes_feature(patch_d.tostring()),
+                    'image_low_res': _bytes_feature(patch_low.tostring()),
                     'x': _int64_feature(int(x)),
                     'y': _int64_feature(int(y)),
                     "area": _int64_feature(int(metastases_area * 100)),
@@ -134,7 +134,8 @@ for annotation in annotation_list.getAnnotations():
                     "area_b": _int64_feature(int(metastases_area_b * 100)),
                     "area_c": _int64_feature(int(metastases_area_c * 100)),
                     "area_d": _int64_feature(int(metastases_area_d * 100)),
-                    "image_name": _bytes_feature(bytes(os.path.basename(args.data), "utf-8"))
+                    "image_name": _bytes_feature(bytes(os.path.basename(args.data), "utf-8")), #TODO: URI
+                    "label": _int64_feature(int( metastases_area > 0.10)), # Threshold set to 10%.
                     }))
                 writer.write(data.SerializeToString())
 
