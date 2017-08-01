@@ -12,14 +12,23 @@ elie.debrauwer@barco.com - 20170801
 
 import argparse
 import numpy as np
+import os
 from scipy import misc
-
-        
-# Append ASAP to PYHONPATH prior to import
 import sys
+import tensorflow as tf
+
+# Append ASAP to PYHONPATH prior to import
+
 sys.path.append("/opt/ASAP/bin")
 
 import multiresolutionimageinterface as mir
+
+
+def _bytes_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+def _int64_feature(value):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data", required=True, help="The file to operate on")
@@ -28,6 +37,7 @@ parser.add_argument("--mask", required=True, help="The file which contains the m
 parser.add_argument("--dim", type=int, default=299, help="The default crop dimension in pixel of a quadrant")
 parser.add_argument("--stridex", type=int, default=598, help="The horizontal offset (can be negative) between two consecutive crops (default: nonoverlapping)")
 parser.add_argument("--stridey", type=int, default=598, help="The vertical offset (can be negative) between two consecutive crops (default: nonoverlapping)")
+parser.add_argument("--out", required=True, help="The TFRecord to write to")
 
 args = parser.parse_args()
 
@@ -46,12 +56,15 @@ assert (xml_repo.load() == True), "Failed to open annotation %s" % args.annotati
 
 crop_cnt = 0
 annotation_cnt = 0
+
+writer = tf.python_io.TFRecordWriter(args.out)
+
 for annotation in annotation_list.getAnnotations():
     if annotation.getGroup().getName() == "metastases":
         annotation_cnt += 1
         bounding_box = annotation.getImageBoundingBox()
         print("Found metatstatis annotation %d: (%d, %d) to (%d, %d)" %
-              (annotation_cnt, 
+              (annotation_cnt,
                bounding_box[0].getX(), bounding_box[0].getY(),
                bounding_box[1].getX(), bounding_box[1].getY()))
         assert(annotation.getType() == mir.Annotation.POLYGON), "Polygon annotation expected"
@@ -69,7 +82,7 @@ for annotation in annotation_list.getAnnotations():
                 crop_cnt += 1
                 print("Taking crop %d at %d %d" % (crop_cnt, x, y))
                 # A B
-                # C D 
+                # C D
                 patch_a = np.array(mr_image.getUCharPatch(int(x), int(y), args.dim, args.dim, 0), dtype=np.uint8)
                 patch_b = np.array(mr_image.getUCharPatch(int(x + args.dim), int(y), args.dim, args.dim, 0), dtype=np.uint8)
                 patch_c = np.array(mr_image.getUCharPatch(int(x), int(y + args.dim), args.dim, args.dim, 0), dtype=np.uint8)
@@ -104,12 +117,28 @@ for annotation in annotation_list.getAnnotations():
                 metastases_area = np.count_nonzero(mask_full) / (args.dim * args.dim * 4.0) # 4 quadrants
                 print("Metastasis area %5.2f%%" % (metastases_area * 100))
 
+                # Append to TFRecord.
+                data = tf.train.Example(features=tf.train.Features(feature={
+                    'crop_top_left': _bytes_feature(patch_a.tostring()),
+                    'crop_top_right': _bytes_feature(patch_b.tostring()),
+                    'crop_bottom_left': _bytes_feature(patch_c.tostring()),
+                    'crop_bottom_right': _bytes_feature(patch_d.tostring()),
+                    'x': _int64_feature(int(x)),
+                    'y': _int64_feature(int(y)),
+                    "area": _int64_feature(int(metastases_area * 100)),
+                    "area_a": _int64_feature(int(metastases_area_a * 100)),
+                    "area_b": _int64_feature(int(metastases_area_b * 100)),
+                    "area_c": _int64_feature(int(metastases_area_c * 100)),
+                    "area_d": _int64_feature(int(metastases_area_d * 100)),
+                    "image_name": _bytes_feature(bytes(os.path.basename(args.data), "utf-8"))
+                    }))
+                writer.write(data.SerializeToString())
+
                 x += args.stridex
             y += args.stridey
     else:
         assert(False), "File has normal region, not supported in this version !"
 
-
+writer.close()
 
 print("Took %d crops from %d annotations" % (crop_cnt, annotation_cnt))
-
