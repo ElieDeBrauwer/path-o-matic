@@ -43,4 +43,4 @@ You can download from the following URL and save as 7.png
 
 https://code.lardcave.net/2015/12/06/1/67CDB2E1-C19C-4CE7-94A3-32AE4B98F4C8@local Then run sh postcloud.sh 
 
-Usage: sh postcloud.sh <user> <password> <serverip> <pngfile>
+Usage: sh postcloud.sh user password serverip pngfile
