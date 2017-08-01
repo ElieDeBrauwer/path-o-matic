@@ -14,7 +14,7 @@ if [ ! -d "$FOLDER" ]; then
     exit
 fi
 
-for TIF in `ls $FOLDER/patient*tif`; do
+for TIF in `ls $FOLDER/patient*tif | grep -v mask`; do
     echo "Extracting images from " $TIF
     echo "============================="
     BASE=`echo $TIF | sed 's/....$//'`
