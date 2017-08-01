@@ -61,7 +61,7 @@ for annotation in annotation_list.getAnnotations():
     if annotation.getGroup().getName() == "metastases":
         annotation_cnt += 1
         bounding_box = annotation.getImageBoundingBox()
-        print("Found metatstatis annotation %d: (%d, %d) to (%d, %d)" %
+        print("Found metastatis annotation %d: (%d, %d) to (%d, %d)" %
               (annotation_cnt,
                bounding_box[0].getX(), bounding_box[0].getY(),
                bounding_box[1].getX(), bounding_box[1].getY()))
