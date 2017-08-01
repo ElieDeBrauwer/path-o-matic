@@ -104,13 +104,13 @@ for annotation in annotation_list.getAnnotations():
 
                 # Write images.
                 fname = os.path.basename(args.data).split(".")[0]
-                misc.imsave("%s_patch_%05d_A_%d_%d.png" % (fname, crop_cnt, x, y),  patch_a)
-                misc.imsave("%s_patch_%05d_B_%d_%d.png" % (fname, crop_cnt, x + args.dim, y),  patch_b)
-                misc.imsave("%s_patch_%05d_C_%d_%d.png" % (fname, crop_cnt, x, y + args.dim),  patch_c)
-                misc.imsave("%s_patch_%05d_D_%d_%d.png" % (fname, crop_cnt, x + args.dim, y + args.dim),  patch_d)
-                misc.imsave("%s_patch_%05d_D_%d_%d_low.png" % (fname, crop_cnt, x, y),  patch_low)
-                misc.imsave("%s_patch_%05d_%d_%d.png" % (fname, crop_cnt, x, y),  patch_full)
-                misc.imsave("%s_mask_%05d_%d_%d_mask.png" % (fname, crop_cnt, x, y),  mask_full_bw)
+                misc.imsave("%s_%05d_A_%d_%d.png" % (fname, crop_cnt, x, y),  patch_a)
+                misc.imsave("%s_%05d_B_%d_%d.png" % (fname, crop_cnt, x + args.dim, y),  patch_b)
+                misc.imsave("%s_%05d_C_%d_%d.png" % (fname, crop_cnt, x, y + args.dim),  patch_c)
+                misc.imsave("%s_%05d_D_%d_%d.png" % (fname, crop_cnt, x + args.dim, y + args.dim),  patch_d)
+                misc.imsave("%s_%05d_%d_%d_low.png" % (fname, crop_cnt, x, y),  patch_low)
+                misc.imsave("%s_%05d_%d_%d_full.png" % (fname, crop_cnt, x, y),  patch_full)
+                misc.imsave("%s_%05d_%d_%d_mask.png" % (fname, crop_cnt, x, y),  mask_full_bw)
 
                 # Calculate areas
                 metastases_area_a = np.count_nonzero(mask_a) / (args.dim * args.dim)
