@@ -25,9 +25,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--data", required=True, help="The file to operate on")
 parser.add_argument("--annotation", required=True, help="The annotation file")
 parser.add_argument("--mask", required=True, help="The file which contains the mask")
-parser.add_argument("--dim", type=int, default=299, help="The default crop dimension in pixel")
-parser.add_argument("--stridex", type=int, default=0, help="The horizontal offset (can be negative) between two consecutive crops (default: nonoverlapping)")
-parser.add_argument("--stridey", type=int, default=0, help="The vertical offset (can be negative) between two consecutive crops (default: nonoverlapping)")
+parser.add_argument("--dim", type=int, default=299, help="The default crop dimension in pixel of a quadrant")
+parser.add_argument("--stridex", type=int, default=598, help="The horizontal offset (can be negative) between two consecutive crops (default: nonoverlapping)")
+parser.add_argument("--stridey", type=int, default=598, help="The vertical offset (can be negative) between two consecutive crops (default: nonoverlapping)")
 
 args = parser.parse_args()
 
@@ -61,24 +61,51 @@ for annotation in annotation_list.getAnnotations():
         start_y = bounding_box[0].getY()
         end_x = bounding_box[1].getX()
         end_y = bounding_box[1].getY()
-        y = start_y - args.dim
+        y = start_y
 
         while y < end_y:
-            x = start_x - args.dim
+            x = start_x
             while x < end_x:
                 crop_cnt += 1
-                x += args.dim + args.stridex
                 print("Taking crop %d at %d %d" % (crop_cnt, x, y))
-                patch = np.array(mr_image.getUCharPatch(int(x), int(y), args.dim, args.dim, 0), dtype=np.uint8)
-                mask = np.array(mr_mask.getUCharPatch(int(x), int(y), args.dim, args.dim, 0), dtype=np.uint8)
-                mask_grey = np.repeat(mask * 255, 3, axis=2) # Convert the mask in to a black-n-white array.
-                misc.imsave("patch_%05d_%d_%d_patch.png" % (crop_cnt, x, y),  patch)
-                misc.imsave("patch_%05d_%d_%d_mask.png" % (crop_cnt, x, y),  mask_grey)
+                # A B
+                # C D 
+                patch_a = np.array(mr_image.getUCharPatch(int(x), int(y), args.dim, args.dim, 0), dtype=np.uint8)
+                patch_b = np.array(mr_image.getUCharPatch(int(x + args.dim), int(y), args.dim, args.dim, 0), dtype=np.uint8)
+                patch_c = np.array(mr_image.getUCharPatch(int(x), int(y + args.dim), args.dim, args.dim, 0), dtype=np.uint8)
+                patch_d = np.array(mr_image.getUCharPatch(int(x + args.dim), int(y + args.dim), args.dim, args.dim, 0), dtype=np.uint8)
+                # TODO: No worky :(
+                patch_low = np.array(mr_image.getUCharPatch(int(x * 2), int(y * 2), args.dim, args.dim, 1), dtype=np.uint8)
+                patch_full = np.array(mr_image.getUCharPatch(int(x), int(y), 2 * args.dim, 2 * args.dim, 0), dtype=np.uint8)
 
-                metastases_area = np.count_nonzero(mask) / (299. * 299.)
+
+                mask_a = np.array(mr_mask.getUCharPatch(int(x), int(y), args.dim, args.dim, 0), dtype=np.uint8)
+                mask_b = np.array(mr_mask.getUCharPatch(int(x + args.dim), int(y), args.dim, args.dim, 0), dtype=np.uint8)
+                mask_c = np.array(mr_mask.getUCharPatch(int(x), int(y + args.dim), args.dim, args.dim, 0), dtype=np.uint8)
+                mask_d = np.array(mr_mask.getUCharPatch(int(x + args.dim), int(y + args.dim), args.dim, args.dim, 0), dtype=np.uint8)
+
+                mask_full = np.append(
+                    np.append( mask_a, mask_b, axis=1),
+                    np.append( mask_c, mask_d, axis=1), axis=0)
+
+                mask_full_bw = np.repeat(mask_full * 255, 3, axis=2) # Convert the mask in to a black-n-white array.
+                misc.imsave("patch_%05d_A_%d_%d_patch.png" % (crop_cnt, x, y),  patch_a)
+                misc.imsave("patch_%05d_B_%d_%d_patch.png" % (crop_cnt, x + args.dim, y),  patch_b)
+                misc.imsave("patch_%05d_C_%d_%d_patch.png" % (crop_cnt, x, y + args.dim),  patch_c)
+                misc.imsave("patch_%05d_D_%d_%d_patch.png" % (crop_cnt, x + args.dim, y + args.dim),  patch_d)
+                misc.imsave("patch_%05d_D_%d_%d_patch_low.png" % (crop_cnt, x, y),  patch_low)
+                misc.imsave("patch_%05d_%d_%d_patch.png" % (crop_cnt, x, y),  patch_full)
+                misc.imsave("patch_%05d_%d_%d_mask.png" % (crop_cnt, x, y),  mask_full_bw)
+
+                metastases_area_a = np.count_nonzero(mask_a) / (args.dim * args.dim)
+                metastases_area_b = np.count_nonzero(mask_b) / (args.dim * args.dim)
+                metastases_area_c = np.count_nonzero(mask_c) / (args.dim * args.dim)
+                metastases_area_d = np.count_nonzero(mask_d) / (args.dim * args.dim)
+                metastases_area = np.count_nonzero(mask_full) / (args.dim * args.dim * 4.0) # 4 quadrants
                 print("Metastasis area %5.2f%%" % (metastases_area * 100))
-                
-            y += args.dim + args.stridey
+
+                x += args.stridex
+            y += args.stridey
     else:
         assert(False), "File has normal region, not supported in this version !"
 
