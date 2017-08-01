@@ -35,7 +35,7 @@ assert (xml_repo.load() == True), "Failed to open annotation %s" % args.annotati
 
 annotation_mask = mir.AnnotationToMask()    
 label_map = {'metastases': 1, 'normal': 2}
-print("Calculation the mask, this will take about 5 minutes...")
+print("Calculating the mask, this will take about 5 minutes...")
 annotation_mask.convert(annotation_list, args.mask, mr_image.getDimensions(), mr_image.getSpacing(), label_map)
 
 
