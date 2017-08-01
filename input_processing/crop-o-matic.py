@@ -58,6 +58,9 @@ annotation_cnt = 0
 writer = tf.python_io.TFRecordWriter(args.tfrecord)
 
 for annotation in annotation_list.getAnnotations():
+    if annotation.getGroup() is None:
+        # Sometimes the group of a bogus annotation is set to None
+        continue
     if annotation.getGroup().getName() == "metastases":
         annotation_cnt += 1
         bounding_box = annotation.getImageBoundingBox()
