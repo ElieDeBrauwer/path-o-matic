@@ -36,7 +36,7 @@ fi
 
 declare -r PROJECT=$(gcloud config list project --format "value(core.project)")
 declare -r JOB_ID="flowers_${USER}_${DATE}"
-declare -r DFJOB_ID="flowers-${DATE}"
+declare -r DFJOB_ID="flowers-`echo ${DATE} | sed 's/_/-/g'`"
 declare -r BUCKET=$1
 declare -r GCS_PATH="${BUCKET}/${USER}/${JOB_ID}"
 declare -r DICT_FILE=gs://cloud-ml-data/img/flower_photos/dict.txt
