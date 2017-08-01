@@ -2,7 +2,7 @@
 
 set -e
 
-if [ -z "$FOLDER" ]; then
+if [ -z "$1" ]; then
     echo "Requires the data and annotation containing folder as a first argument"
     exit
 fi
