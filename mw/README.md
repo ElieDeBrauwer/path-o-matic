@@ -5,6 +5,7 @@ The middleware files are used to prototype a simple end to end MNIST model and s
 The following files are used in the setup
 1. MnistModel.py : Used to build the MNIST model and save to disk
    The model is written to directory ./saved_models
+   There is a dependency on the directory as well on the presence of the prediction node. It has to be named "prediction" and should accept the input feature tensor and return the predicted value 
 2. MnistPredict.py : Used to read the model and predict/classify an image
    Reads ./saved_models/Images.ckpt.meta to build the graph
    Reads ./saved_models/* to read the model values 
