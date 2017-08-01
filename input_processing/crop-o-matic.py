@@ -90,10 +90,13 @@ for annotation in annotation_list.getAnnotations():
                 patch_b = np.array(mr_image.getUCharPatch(int(x + args.dim), int(y), args.dim, args.dim, 0), dtype=np.uint8)
                 patch_c = np.array(mr_image.getUCharPatch(int(x), int(y + args.dim), args.dim, args.dim, 0), dtype=np.uint8)
                 patch_d = np.array(mr_image.getUCharPatch(int(x + args.dim), int(y + args.dim), args.dim, args.dim, 0), dtype=np.uint8)
-                # TODO: No worky :(
-                patch_low = np.array(mr_image.getUCharPatch(int(x * 2), int(y * 2), args.dim, args.dim, 1), dtype=np.uint8)
                 patch_full = np.array(mr_image.getUCharPatch(int(x), int(y), 2 * args.dim, 2 * args.dim, 0), dtype=np.uint8)
-
+                # This should work, but doesn't. No worky :(
+                # Let's hack around this.
+                # patch_low = np.array(mr_image.getUCharPatch(int(x * 2), int(y * 2), args.dim, args.dim, 1), dtype=np.uint8)
+                patch_low = misc.imresize(patch_full, 0.5, interp="bilinear")
+                print(patch_low)
+                print(patch_low.shape)
 
                 # Grab masks.
                 mask_a = np.array(mr_mask.getUCharPatch(int(x), int(y), args.dim, args.dim, 0), dtype=np.uint8)
