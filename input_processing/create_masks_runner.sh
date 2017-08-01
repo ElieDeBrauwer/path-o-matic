@@ -18,5 +18,5 @@ for TIF in `ls $FOLDER/patient*tif`; do
     echo "Processing " $TIF
     echo "============================="
     BASE=`echo $TIF | sed 's/....$//'`
-    time ./create_masks.py --data=$BASE.tif --annotation=$BASE.xml --mask=$BASE_mask.tif
+    time ./create_masks.py --data=${BASE}.tif --annotation=${BASE}.xml --mask=${BASE}_mask.tif
 done

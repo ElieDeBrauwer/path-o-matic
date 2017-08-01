@@ -35,8 +35,8 @@ if [ -z "$1" ]
 fi
 
 declare -r PROJECT=$(gcloud config list project --format "value(core.project)")
-declare -r JOB_ID="hugs_${USER}_$(date +%Y%m%d_%H%M%S)"
-declare -r DFJOB_ID="hugs-$(date +%Y%m%d-%H%M%S)"
+declare -r JOB_ID="hugs_${USER}_${DATE}"
+declare -r DFJOB_ID="hugs-${DATE}"
 declare -r BUCKET=$1
 declare -r GCS_PATH="${BUCKET}/${USER}/${JOB_ID}"
 declare -r DICT_FILE=gs://oscon-tf-workshop-materials/transfer_learning/cloudml/hugs_photos/dict.txt

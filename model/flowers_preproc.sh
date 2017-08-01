@@ -35,8 +35,8 @@ if [ -z "$1" ]
 fi
 
 declare -r PROJECT=$(gcloud config list project --format "value(core.project)")
-declare -r JOB_ID="flowers_${USER}_$(date +%Y%m%d_%H%M%S)"
-declare -r DFJOB_ID="flowers-$(date +%Y%m%d-%H%M%S)"
+declare -r JOB_ID="flowers_${USER}_${DATE}"
+declare -r DFJOB_ID="flowers-${DATE}"
 declare -r BUCKET=$1
 declare -r GCS_PATH="${BUCKET}/${USER}/${JOB_ID}"
 declare -r DICT_FILE=gs://cloud-ml-data/img/flower_photos/dict.txt
