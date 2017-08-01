@@ -91,6 +91,11 @@ def create_model():
       '--inception_checkpoint_file',
       type=str,
       default=DEFAULT_INCEPTION_CHECKPOINT)
+  parser.add_argument(
+      '--model_type',
+      type=str,
+      default='baseline',
+      help='Defines the model type.', choices=['baseline', 'multi_resolution', 'split_color_channel'])
   args, task_args = parser.parse_known_args()
 
   # Adding the following 'hack' to make the example easier to run: use the
@@ -113,7 +118,8 @@ def create_model():
   override_if_not_in_args('--log_interval_secs', '2', task_args)
   override_if_not_in_args('--min_train_eval_rate', '2', task_args)
   return Model(args.label_count, args.dropout,
-               args.inception_checkpoint_file), task_args
+               args.inception_checkpoint_file,
+               args.model_type), task_args
 
 
 class GraphReferences(object):
@@ -131,12 +137,14 @@ class GraphReferences(object):
 
 
 class Model(object):
-  """TensorFlow model for the flowers problem."""
+  """TensorFlow model for an image classification problem."""
 
-  def __init__(self, label_count, dropout, inception_checkpoint_file):
+  def __init__(self, label_count, dropout, inception_checkpoint_file,
+              model_type):
     self.label_count = label_count
     self.dropout = dropout
     self.inception_checkpoint_file = inception_checkpoint_file
+    self.model_type = model_type
 
   def add_final_training_ops(self,
                              embeddings,
@@ -221,6 +229,7 @@ class Model(object):
       image = tf.cast(image, dtype=tf.uint8)
       return image
 
+    # FIXME This is a dupplication of the preprocess.py and must be in sync
     image = tf.map_fn(
         decode_and_resize, image_str_tensor, back_prop=False, dtype=tf.uint8)
     # convert_image_dtype, also scales [0, uint8_max] -> [0 ,1).
@@ -266,21 +275,21 @@ class Model(object):
       # Generate placeholders for examples.
       with tf.name_scope('inputs'):
         feature_map = {            
-            'crop_top_left':
+            'emb_top_left':
                 tf.FixedLenFeature(
-                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
-            'crop_top_right':
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32),
+            'emb_top_right':
                 tf.FixedLenFeature(
-                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
-            'crop_bottom_left':
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32),
+            'emb_bottom_left':
                 tf.FixedLenFeature(
-                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
-            'crop_bottom_right':
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32),
+            'emb_bottom_right':
                 tf.FixedLenFeature(
-                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
-            'image_low_res':
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32),
+            'emb_low_res':
                 tf.FixedLenFeature(
-                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32),
             'x':
                 tf.FixedLenFeature(
                     shape=[1], dtype=tf.int64,
@@ -301,8 +310,17 @@ class Model(object):
         parsed = tf.parse_example(tensors.examples, features=feature_map)
         labels = tf.squeeze(parsed['label'])
         uris = tf.squeeze(parsed['image_uri'])
+        
+        if self.model_type == "baseline":
+            embeddings = parsed['emb_low_res']
+            bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE
         #TODO ADJUST TO NON BASELINE IMPLEMENTATION USING ALL EMBEDDINGS
-        embeddings = parsed['image_low_res']
+        elif self.model_type == "multi_resolution":
+            embeddings = parsed['emb_low_res']
+            bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 5
+        elif self.model_type == "split_color_channel":
+            embeddings = parsed['emb_low_res']
+            bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 3
 
     # We assume a default label, so the total number of labels is equal to
     # label_count+1.
@@ -311,7 +329,8 @@ class Model(object):
       softmax, logits = self.add_final_training_ops(
           embeddings,
           all_labels_count,
-          BOTTLENECK_TENSOR_SIZE,
+          bottleneck_tensor_size,
+          hidden_layer_size=bottleneck_tensor_size / 4,
           dropout_keep_prob=self.dropout if is_training else None)
 
     # Prediction is the index of the label with the highest score. We are
