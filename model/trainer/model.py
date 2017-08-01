@@ -265,25 +265,44 @@ class Model(object):
       # inputs are tf-examples.
       # Generate placeholders for examples.
       with tf.name_scope('inputs'):
-        feature_map = {
+        feature_map = {            
+            'crop_top_left':
+                tf.FixedLenFeature(
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
+            'crop_top_right':
+                tf.FixedLenFeature(
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
+            'crop_bottom_left':
+                tf.FixedLenFeature(
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
+            'crop_bottom_right':
+                tf.FixedLenFeature(
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
+            'image_low_res':
+                tf.FixedLenFeature(
+                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
+            'x':
+                tf.FixedLenFeature(
+                    shape=[1], dtype=tf.int64,
+                    default_value=[0]),
+            'y':
+                tf.FixedLenFeature(
+                    shape=[1], dtype=tf.int64,
+                    default_value=[0]),
             'image_uri':
                 tf.FixedLenFeature(
                     shape=[], dtype=tf.string, default_value=['']),
-            # Some images may have no labels. For those, we assume a default
-            # label. So the number of labels is label_count+1 for the default
-            # label.
             'label':
                 tf.FixedLenFeature(
                     shape=[1], dtype=tf.int64,
                     default_value=[self.label_count]),
-            'embedding':
-                tf.FixedLenFeature(
-                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
+            
         }
         parsed = tf.parse_example(tensors.examples, features=feature_map)
         labels = tf.squeeze(parsed['label'])
         uris = tf.squeeze(parsed['image_uri'])
-        embeddings = parsed['embedding']
+        #TODO ADJUST TO NON BASELINE IMPLEMENTATION USING ALL EMBEDDINGS
+        embeddings = parsed['image_low_res']
 
     # We assume a default label, so the total number of labels is equal to
     # label_count+1.
