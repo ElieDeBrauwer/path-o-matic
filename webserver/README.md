@@ -36,6 +36,16 @@ To use Google Cloud ML micro service for prediction provide correct model_name a
 python predict_server.py --model_name somemodel --project someproject --dict static/dict.txt 
 ```
 
-The app listens on port 5000. You can expose it as such for internal testing or expose it via Apache/Nginx.
+The app listens on port 5000 by default.
+You can expose it as such for internal testing or expose it via Apache/Nginx.
+
+You can specify alternate port using --port argument
+If you want to run on port 80, use sudo to invoke the app:
+
+```shell
+sudo python predict_server.py --model_name somemodel --project someproject --dict static/dict.txt --port 80
+```
+
+
 
 
