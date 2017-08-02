@@ -164,6 +164,7 @@ def get_direct_prediction(direct_url, username, password, filename):
 
     label = 'Unknown'
     score = '0'
+    print 'Predicting image:', filename 
     try:
         response = urllib2.urlopen(request, context=ssl._create_unverified_context())
         result = response.read()
@@ -181,7 +182,7 @@ def get_direct_prediction(direct_url, username, password, filename):
             label = 'benign'
     except urllib2.HTTPError as e:
         error_message = e.read()
-        print error_message
+        print 'Prediction server failed:', error_message
     return label, score
 
 def make_request_json(input_image):
@@ -225,6 +226,9 @@ def parse_args():
   parser.add_argument(
       '--password', type=str,
       help=('Basic Auth password for self hosted prediction service'))
+  parser.add_argument(
+      '--port', type=int,
+      help=('Specify port to run on (default 5000'))
   args, _ = parser.parse_known_args(sys.argv)
   return args
 
@@ -239,9 +243,11 @@ if __name__ == "__main__":
     args = parse_args()
     labels = read_dictionary(args.dict)
     print("labels: %s" % labels)
+
     # Runs on port 5000 by default.
-    # Change to app.run(host='0.0.0.0') for an externally visible
-    # server.
-    app.run(host='0.0.0.0', debug=True)
+    if args.port and args.port > 0:
+        app.run(host='0.0.0.0', port=args.port, debug=True)
+    else:
+        app.run(host='0.0.0.0', debug=True)
 
 
