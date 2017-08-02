@@ -17,7 +17,7 @@ from scipy import misc
 import sys
 import tensorflow as tf
 
-# Append ASAP to PYHONPATH prior to import
+# Append ASAP to PYTHONPATH prior to import
 sys.path.append("/opt/ASAP/bin")
 
 import multiresolutionimageinterface as mir
@@ -35,8 +35,8 @@ parser.add_argument("--mask", required=True, help="The file which contains the m
 parser.add_argument("--dim", type=int, default=299, help="The default crop dimension in pixel of a quadrant")
 parser.add_argument("--stridex", type=int, default=598, help="The horizontal offset (can be negative) between two consecutive crops (default: nonoverlapping)")
 parser.add_argument("--stridey", type=int, default=598, help="The vertical offset (can be negative) between two consecutive crops (default: nonoverlapping)")
-parser.add_argument("--out", required=True, help="The TFRecord to write to")
-
+parser.add_argument("--tfrecord", default="./tfrecord.tf", help="The TFRecord to write to")
+parser.add_argument("--imageout", default="./", help="The folder where the images will be written to")
 args = parser.parse_args()
 
 reader = mir.MultiResolutionImageReader()
@@ -55,13 +55,16 @@ assert (xml_repo.load() == True), "Failed to open annotation %s" % args.annotati
 crop_cnt = 0
 annotation_cnt = 0
 
-writer = tf.python_io.TFRecordWriter(args.out)
+writer = tf.python_io.TFRecordWriter(args.tfrecord)
 
 for annotation in annotation_list.getAnnotations():
+    if annotation.getGroup() is None:
+        # Sometimes the group of a bogus annotation is set to None
+        continue
     if annotation.getGroup().getName() == "metastases":
         annotation_cnt += 1
         bounding_box = annotation.getImageBoundingBox()
-        print("Found metatstatis annotation %d: (%d, %d) to (%d, %d)" %
+        print("Found metastatis annotation %d: (%d, %d) to (%d, %d)" %
               (annotation_cnt,
                bounding_box[0].getX(), bounding_box[0].getY(),
                bounding_box[1].getX(), bounding_box[1].getY()))
@@ -87,10 +90,11 @@ for annotation in annotation_list.getAnnotations():
                 patch_b = np.array(mr_image.getUCharPatch(int(x + args.dim), int(y), args.dim, args.dim, 0), dtype=np.uint8)
                 patch_c = np.array(mr_image.getUCharPatch(int(x), int(y + args.dim), args.dim, args.dim, 0), dtype=np.uint8)
                 patch_d = np.array(mr_image.getUCharPatch(int(x + args.dim), int(y + args.dim), args.dim, args.dim, 0), dtype=np.uint8)
-                # TODO: No worky :(
-                patch_low = np.array(mr_image.getUCharPatch(int(x * 2), int(y * 2), args.dim, args.dim, 1), dtype=np.uint8)
                 patch_full = np.array(mr_image.getUCharPatch(int(x), int(y), 2 * args.dim, 2 * args.dim, 0), dtype=np.uint8)
-
+                # This should work, but doesn't. No worky :(
+                # Let's hack around this.
+                # patch_low = np.array(mr_image.getUCharPatch(int(x * 2), int(y * 2), args.dim, args.dim, 1), dtype=np.uint8)
+                patch_low = misc.imresize(patch_full, 0.5, interp="bilinear")
 
                 # Grab masks.
                 mask_a = np.array(mr_mask.getUCharPatch(int(x), int(y), args.dim, args.dim, 0), dtype=np.uint8)
@@ -104,13 +108,13 @@ for annotation in annotation_list.getAnnotations():
 
                 # Write images.
                 fname = os.path.basename(args.data).split(".")[0]
-                misc.imsave("%s_%05d_A_%d_%d.png" % (fname, crop_cnt, x, y),  patch_a)
-                misc.imsave("%s_%05d_B_%d_%d.png" % (fname, crop_cnt, x + args.dim, y),  patch_b)
-                misc.imsave("%s_%05d_C_%d_%d.png" % (fname, crop_cnt, x, y + args.dim),  patch_c)
-                misc.imsave("%s_%05d_D_%d_%d.png" % (fname, crop_cnt, x + args.dim, y + args.dim),  patch_d)
-                misc.imsave("%s_%05d_%d_%d_low.png" % (fname, crop_cnt, x, y),  patch_low)
-                misc.imsave("%s_%05d_%d_%d_full.png" % (fname, crop_cnt, x, y),  patch_full)
-                misc.imsave("%s_%05d_%d_%d_mask.png" % (fname, crop_cnt, x, y),  mask_full_bw)
+                misc.imsave(args.imageout + "/%s_%05d_A_%d_%d.png" % (fname, crop_cnt, x, y),  patch_a)
+                misc.imsave(args.imageout + "/%s_%05d_B_%d_%d.png" % (fname, crop_cnt, x + args.dim, y),  patch_b)
+                misc.imsave(args.imageout + "/%s_%05d_C_%d_%d.png" % (fname, crop_cnt, x, y + args.dim),  patch_c)
+                misc.imsave(args.imageout + "/%s_%05d_D_%d_%d.png" % (fname, crop_cnt, x + args.dim, y + args.dim),  patch_d)
+                misc.imsave(args.imageout + "/%s_%05d_%d_%d_low.png" % (fname, crop_cnt, x, y),  patch_low)
+                misc.imsave(args.imageout + "/%s_%05d_%d_%d_full.png" % (fname, crop_cnt, x, y),  patch_full)
+                misc.imsave(args.imageout + "/%s_%05d_%d_%d_mask.png" % (fname, crop_cnt, x, y),  mask_full_bw)
 
                 # Calculate areas
                 metastases_area_a = np.count_nonzero(mask_a) / (args.dim * args.dim)

@@ -10,7 +10,7 @@ elie.debrauwer@barco.com - 20170801
 """
 
 
-# Append ASAP to PYHONPATH prior to import
+# Append ASAP to PYTHONPATH prior to import
 import sys
 sys.path.append("/opt/ASAP/bin")
 
