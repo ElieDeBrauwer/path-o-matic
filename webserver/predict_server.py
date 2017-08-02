@@ -164,6 +164,7 @@ def get_direct_prediction(direct_url, username, password, filename):
 
     label = 'Unknown'
     score = '0'
+    print 'Predicting image:', filename 
     try:
         response = urllib2.urlopen(request, context=ssl._create_unverified_context())
         result = response.read()
@@ -181,7 +182,7 @@ def get_direct_prediction(direct_url, username, password, filename):
             label = 'benign'
     except urllib2.HTTPError as e:
         error_message = e.read()
-        print error_message
+        print 'Prediction server failed:', error_message
     return label, score
 
 def make_request_json(input_image):
