@@ -21,7 +21,7 @@ To install the dependencies run:
 sudo pip install -r requirements.txt
 ```
 
-# Starting the app
+## Starting the app
 
 To use self hosted prediction service you need to provide direct_url option and username/password:
 
