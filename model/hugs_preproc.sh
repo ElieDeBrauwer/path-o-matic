@@ -80,7 +80,9 @@ python trainer/preprocess.py \
   --job_name "${DFJOB_ID}t" \
   --num_workers 20 \
   --cloud \
+  --worker_machine_type n1-standard-8 \
   --requirements_file requirements.txt
+  
 
 set +v
 echo

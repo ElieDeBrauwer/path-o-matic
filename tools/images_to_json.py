@@ -54,9 +54,9 @@ def parse_args():
 
   args = parser.parse_args()
 
-  check = lambda filename: filename.lower().endswith(('jpeg', 'jpg'))
+  check = lambda filename: filename.lower().endswith(('jpeg', 'jpg', 'png'))
   if not all(check(input_file.name) for input_file in args.inputs):
-    sys.stderr.write('All inputs must be .jpeg or .jpg')
+    sys.stderr.write('All inputs must be .png, .jpeg or .jpg')
     sys.exit(1)
 
   return args

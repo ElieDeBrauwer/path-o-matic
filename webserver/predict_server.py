@@ -47,6 +47,8 @@ ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'JPG', 'png', 'PNG'])
 args = None
 labels = None
 
+sample_image_list='patient_009_node_1_00030_52048_143371,patient_009_node_1_00017_50450_144973,patient_004_node_4_00002_13092_87057,patient_012_node_0_00002_10284_94236'
+#sample_image_list='patient_009_node_1_00030_52048_143371'
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -83,7 +85,8 @@ def upload_file():
                 return redirect(url_for('show_result',
                                         filename=filename,
                                         label=label,
-                                        score=score))
+                                        score=score,
+                                        image_list=sample_image_list))
 
             # Fall through to using Google's ML service for prediction
             ml_client = create_client()
@@ -101,7 +104,8 @@ def upload_file():
             return redirect(url_for('show_result',
                                     filename=filename,
                                     label=label,
-                                    score=score))
+                                    score=score,
+                                    image_list=sample_image_list))
 
     return render_template('index.html')
 
@@ -113,6 +117,7 @@ def show_result():
     filename = request.args['filename']
     label = request.args['label']
     score = request.args['score']
+    image_list = request.args['image_list']
 
     # This result handling logic is hardwired for the "hugs/not-hugs"
     # example, but would be easy to modify for some other set of
@@ -122,21 +127,38 @@ def show_result():
                                filename=filename,
                                label="Malignant",
                                score=score,
-                               border_color="#B20000")
+                               border_color="#B20000",
+                               image_list=image_list)
 
     elif label == 'benign':
         return render_template('jresults.html',
                                filename=filename,
                                label="Benign",
                                score=score,
-                               border_color="#00FF48")
+                               border_color="#00FF48",
+                               image_list=image_list)
     else:
         return render_template('error.html',
                                message="Something went wrong.")
 
 
-def create_client():
+@app.route('/similar_images')
+def show_similar_images():
 
+    image_list = request.args['image_list']
+    images = image_list.split(',')
+
+    print "Similar Images: ", image_list
+
+    return render_template('similarimages.html', image_list=images)
+
+@app.route('/display_image')
+def display_image():
+    image_name = request.args['image_name']
+    print "Display Image:", image_name
+    return render_template('display_image.html', image_name=image_name)
+
+def create_client():
   credentials = GoogleCredentials.get_application_default()
   ml_service = discovery.build(
       'ml', 'v1', credentials=credentials)
@@ -184,6 +206,7 @@ def get_direct_prediction(direct_url, username, password, filename):
         error_message = e.read()
         print 'Prediction server failed:', error_message
     return label, score
+
 
 def make_request_json(input_image):
   """..."""

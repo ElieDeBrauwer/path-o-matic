@@ -47,22 +47,16 @@
 </nav>
 <div class="container">
     <div class="starter-template">
-        <h1>Your recommendation</h1>
-        <br/>
-        <p class=lead style="color: {{ border_color}};"><b>{{ label }}</b> With a score of <strong>{{ score }}</strong>,
-            we're {% if score | float > 0.7 %}
-            pretty
-            {% else %}
-            somewhat
-            {% endif %} sure.</p>
-        <br/>
-        <img class="img-responsive" src="{{ url_for('static', filename=filename) }}"
-             style="outline: 10px solid {{ border_color }}">
-        <br/>
-        <a href="{{ url_for('show_similar_images', image_list=image_list)}}" class="btn btn-info">Similar Images</a>
-
+      <div class="combo_box">
+	 <img src="{{ "http://storage.googleapis.com/path-o-matic/%s_full.png" % image_name  }}"
+              class="underlay" style="outline: 4px solid" >
+	 <img src="{{ "http://storage.googleapis.com/path-o-matic/%s_mask.png" % image_name  }}"
+              class="overlay" style="outline: 4px solid" id="overlay_img">
+	</div>
+	<div style="position: relative; top:700px">
+	  <a onclick="window.history.back()" class="btn btn-info">Back</a>
+	</div>
     </div>
-</div>
 </div>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 </body>
