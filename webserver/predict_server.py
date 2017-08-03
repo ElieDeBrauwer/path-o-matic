@@ -146,11 +146,7 @@ def show_result():
 def show_similar_images():
 
     image_list = request.args['image_list']
-
     images = image_list.split(',')
-    for image in images:
-        download_image(image + '_full.png')
-        download_image(image + '_mask.png')
 
     print "Similar Images: ", image_list
 
@@ -162,25 +158,7 @@ def display_image():
     print "Display Image:", image_name
     return render_template('display_image.html', image_name=image_name)
 
-
-def download_image(image_name):
-    file_path = "%s/similar_images/%s" % (UPLOAD_FOLDER, image_name)
-    if not os.path.isfile(file_path):
-        try:
-            file_url = "http://storage.googleapis.com/path-o-matic/%s" % (image_name)
-            response = urllib2.urlopen(file_url, timeout=5)
-            content = response.read()
-            f = open(file_path, 'w')
-            f.write(content)
-            f.close()
-        except urllib2.URLError as e:
-            print "Failed to retrieve", e.read()
-
-def get_gcs_url(file_name):
-    return 'http://storage.googleapis.com/path-o-matic/' + file_name
-
 def create_client():
-
   credentials = GoogleCredentials.get_application_default()
   ml_service = discovery.build(
       'ml', 'v1', credentials=credentials)
