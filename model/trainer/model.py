@@ -35,7 +35,7 @@ from util import override_if_not_in_args
 slim = tf.contrib.slim
 
 LOGITS_TENSOR_NAME = 'logits_tensor'
-IMAGE_URI_COLUMN = 'image_uri'
+IMAGE_URI_COLUMN = 'image_name'
 LABEL_COLUMN = 'label'
 EMBEDDING_COLUMN = 'embedding'
 
@@ -133,7 +133,7 @@ class GraphReferences(object):
     self.metric_values = []
     self.keys = None
     self.predictions = []
-    self.input_jpeg = None
+    self.input_png = None
 
 
 class Model(object):
@@ -199,26 +199,30 @@ class Model(object):
       details about InceptionV3.
 
     Returns:
-      input_jpeg: A placeholder for jpeg string batch that allows feeding the
-                  Inception layer with image bytes for prediction.
+      input_png: A placeholder for png string batch that allows feeding the
+                Inception layer with image bytes for prediction.
       inception_embeddings: The embeddings tensor.
     """
 
     # These constants are set by Inception v3's expectations.
     height = 299
-    width = 299
+    width  = 299
     channels = 3
+    if self.model_type == 'multi_resolution':
+      height = height * 2
+      width  = width  * 2
 
     image_str_tensor = tf.placeholder(tf.string, shape=[None])
 
     # The CloudML Prediction API always "feeds" the Tensorflow graph with
-    # dynamic batch sizes e.g. (?,).  decode_jpeg only processes scalar
+    # dynamic batch sizes e.g. (?,).  decode_png only processes scalar
     # strings because it cannot guarantee a batch of images would have
-    # the same output size.  We use tf.map_fn to give decode_jpeg a scalar
+    # the same output size.  We use tf.map_fn to give decode_png a scalar
     # string from dynamic batches.
     def decode_and_resize(image_str_tensor):
-      """Decodes jpeg string, resizes it and returns a uint8 tensor."""
-      image = tf.image.decode_jpeg(image_str_tensor, channels=channels)
+      """Decodes png string, resizes it and returns a uint8 tensor."""
+      image = tf.image.decode_png(image_str_tensor, channels=channels, 
+                                  dtype=tf.uint8)
       # Note resize expects a batch_size, but tf_map supresses that index,
       # thus we have to expand then squeeze.  Resize returns float32 in the
       # range [0, uint8_max]
@@ -227,6 +231,42 @@ class Model(object):
           image, [height, width], align_corners=False)
       image = tf.squeeze(image, squeeze_dims=[0])
       image = tf.cast(image, dtype=tf.uint8)
+      
+      # Generate the multi-resolution crops 
+      if self.model_type == 'multi_resolution':
+        # The four high-resolution crops
+        crop_top_left  = tf.image.crop_to_bounding_box(
+                             image, 0, 0, height/2, width/2)
+        crop_top_right = tf.image.crop_to_bounding_box(
+                             image, 0, width/2, height/2, width/2)
+        crop_bot_left  = tf.image.crop_to_bounding_box(
+                             image, height/2, 0, height/2, width/2)
+        crop_bot_right = tf.image.crop_to_bounding_box(
+                             image, height/2, width/2, height/2, width/2) 
+        
+        # The low-resolution image
+        img_low_res = tf.image.crop_and_resize(
+                          image, boxes=[[0.0, 0.0, 1.0, 1.0]],
+                          box_ind=[0], crop_size=[height/2, width/2])
+        
+        # Concatenate into the batch dimension
+        image = tf.concat([
+                    img_top_left, img_top_right, img_bot_left, img_bot_right,
+                    img_low_res],
+                    axis=0)
+        
+      # Generate the split-color-channel crops 
+      if self.model_type == "split_color_channel":
+        # TODO split color channels
+        img_low_res_rrr = image
+        img_low_res_ggg = image
+        img_low_res_bbb = image
+        
+        # Concatenate into the batch dimension
+        image = tf.concat([
+                    img_low_res_rrr, img_low_res_ggg, img_low_res_bbb],
+                    axis=0)
+        
       return image
 
     # FIXME This is a dupplication of the preprocess.py and must be in sync
@@ -267,13 +307,26 @@ class Model(object):
       # Build the Inception graph. We later add final training layers
       # to this graph. This is currently used only for prediction.
       # For training, we use pre-processed data, so it is not needed.
-      embeddings = inception_embeddings
-      tensors.input_jpeg = inception_input
+        
+      # Split the embeddings according to the selected model type
+      if self.model_type == "baseline":
+          embeddings = inception_embeddings
+      elif self.model_type == "multi_resolution":
+        splits = tf.split(inception_embeddings,
+                          num_or_size_splits=5, axis=0)
+        embeddings = tf.concat(splits, axis=1)
+      elif self.model_type == "split_color_channel":
+        splits = tf.split(inception_embeddings,
+                          num_or_size_splits=3, axis=0)
+        embeddings = tf.concat(splits, axis=1)
+        
+      tensors.input_png = inception_input
     else:
       # For training and evaluation we assume data is preprocessed, so the
       # inputs are tf-examples.
       # Generate placeholders for examples.
       with tf.name_scope('inputs'):
+        # TODO modify feature map when when using split-color-channel
         feature_map = {            
             'emb_top_left':
                 tf.FixedLenFeature(
@@ -292,36 +345,50 @@ class Model(object):
                     shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32),
             'x':
                 tf.FixedLenFeature(
-                    shape=[1], dtype=tf.int64,
+                    shape=[1], dtype=tf.float32,
                     default_value=[0]),
             'y':
                 tf.FixedLenFeature(
-                    shape=[1], dtype=tf.int64,
+                    shape=[1], dtype=tf.float32,
                     default_value=[0]),
-            'image_uri':
+            'image_name':
                 tf.FixedLenFeature(
                     shape=[], dtype=tf.string, default_value=['']),
             'label':
                 tf.FixedLenFeature(
-                    shape=[1], dtype=tf.int64,
-                    default_value=[self.label_count]),
-            
+                    shape=[1], dtype=tf.float32,
+                    default_value=[self.label_count])
         }
         parsed = tf.parse_example(tensors.examples, features=feature_map)
-        labels = tf.squeeze(parsed['label'])
-        uris = tf.squeeze(parsed['image_uri'])
+        labels = tf.squeeze(tf.to_int32(parsed['label']))
+        uris = tf.squeeze(parsed['image_name'])
         
+        # Concatenate the embeddings according to the selected model type
         if self.model_type == "baseline":
             embeddings = parsed['emb_low_res']
-            bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE
-        #TODO ADJUST TO NON BASELINE IMPLEMENTATION USING ALL EMBEDDINGS
         elif self.model_type == "multi_resolution":
-            embeddings = parsed['emb_low_res']
-            bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 5
+            embeddings = tf.concat([
+                parsed['emb_top_left'],
+                parsed['emb_top_right'],
+                parsed['emb_bottom_left'],
+                parsed['emb_bottom_right'],
+                parsed['emb_low_res']],
+                axis=1)
         elif self.model_type == "split_color_channel":
-            embeddings = parsed['emb_low_res']
-            bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 3
+            embeddings = tf.concat([
+                parsed['emb_low_res_rrr'],
+                parsed['emb_low_res_ggg'],
+                parsed['emb_low_res_bbb']],
+                axis=1)
 
+    # Define the bottleneck size according to the selected model type
+    if self.model_type == "baseline":
+        bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE
+    elif self.model_type == "multi_resolution":
+        bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 5
+    elif self.model_type == "split_color_channel":
+        bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 3
+        
     # We assume a default label, so the total number of labels is equal to
     # label_count+1.
     all_labels_count = self.label_count + 1
@@ -417,7 +484,7 @@ class Model(object):
     keys_placeholder = tf.placeholder(tf.string, shape=[None])
     inputs = {
         'key': keys_placeholder,
-        'image_bytes': tensors.input_jpeg
+        'image_bytes': tensors.input_png
     }
 
     # To extract the id, we need to add the identity function.
