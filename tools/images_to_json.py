@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 
 # Copyright 2016 Google Inc. All Rights Reserved.
 #
