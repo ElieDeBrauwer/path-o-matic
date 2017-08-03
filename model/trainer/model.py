@@ -114,8 +114,8 @@ def create_model():
   override_if_not_in_args('--max_steps', '1000', task_args)
   override_if_not_in_args('--batch_size', '100', task_args)
   override_if_not_in_args('--eval_set_size', '370', task_args)
-  override_if_not_in_args('--eval_interval_secs', '2', task_args)
-  override_if_not_in_args('--log_interval_secs', '2', task_args)
+  override_if_not_in_args('--eval_interval_secs', '1', task_args)
+  override_if_not_in_args('--log_interval_secs', '1', task_args)
   override_if_not_in_args('--min_train_eval_rate', '2', task_args)
   return Model(args.label_count, args.dropout,
                args.inception_checkpoint_file,
@@ -210,8 +210,11 @@ class Model(object):
     width  = 299
     channels = 3
     if self.model_type == 'multi_resolution':
-      height = height * 2
-      width  = width  * 2
+      height_input = height * 2
+      width_input  = width  * 2
+    else:
+      height_input = height
+      width_input  = width
 
     image_str_tensor = tf.placeholder(tf.string, shape=[None])
 
@@ -229,30 +232,32 @@ class Model(object):
       # range [0, uint8_max]
       image = tf.expand_dims(image, 0)
       image = tf.image.resize_bilinear(
-          image, [height, width], align_corners=False)
-      image = tf.squeeze(image, squeeze_dims=[0])
+          image, [height_input, width_input], align_corners=False)
       image = tf.cast(image, dtype=tf.uint8)
       
       # Generate the multi-resolution crops 
       if self.model_type == 'multi_resolution':
         # The four high-resolution crops
         crop_top_left  = tf.image.crop_to_bounding_box(
-                             image, 0, 0, height/2, width/2)
+                             image, 0, 0, height, width)
         crop_top_right = tf.image.crop_to_bounding_box(
-                             image, 0, width/2, height/2, width/2)
+                             image, 0, width, height, width)
         crop_bot_left  = tf.image.crop_to_bounding_box(
-                             image, height/2, 0, height/2, width/2)
+                             image, height, 0, height, width)
         crop_bot_right = tf.image.crop_to_bounding_box(
-                             image, height/2, width/2, height/2, width/2) 
+                             image, height, width, height, width) 
         
         # The low-resolution image
-        img_low_res = tf.image.crop_and_resize(
-                          image, boxes=[[0.0, 0.0, 1.0, 1.0]],
-                          box_ind=[0], crop_size=[height/2, width/2])
+        img_low_res = tf.cast(
+                tf.image.crop_and_resize(
+                    image, boxes=[[0.0, 0.0, 1.0, 1.0]],
+                    box_ind=[0], crop_size=[height, width]
+                ), dtype=tf.uint8)
         
         # Concatenate into the batch dimension
         image = tf.concat([
-                    img_top_left, img_top_right, img_bot_left, img_bot_right,
+                    crop_top_left, crop_top_right,
+                    crop_bot_left, crop_bot_right,
                     img_low_res],
                     axis=0)
         
@@ -270,10 +275,18 @@ class Model(object):
         
       return image
 
-    # FIXME This is a dupplication of the preprocess.py and must be in sync
     image = tf.map_fn(
         decode_and_resize, image_str_tensor, back_prop=False, dtype=tf.uint8)
-    # convert_image_dtype, also scales [0, uint8_max] -> [0 ,1).
+    
+    # Up til now image has become a 5D tensor
+    # Current shape is: [batch_size, n, height, width, channels]
+    # 'n' is 1 for the baseline case, 3 for split-channel and 5 for multi-resolution
+    # Reshape this to a 4D tensor of shape [batch_size * n, height, width, channels]
+    # Later-on we will need to carefully undo this stacking into the batch
+    # dimension when combining the embeddings as inputs for the output DNN.
+    image = tf.reshape(image, [-1, height, width, channels])
+    
+    # convert_image_dtype, also scales [0, uint8_max] -> [0 ,1].
     image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
     # Then shift images to [-1, 1) for Inception.
@@ -294,6 +307,15 @@ class Model(object):
     """Builds generic graph for training or eval."""
     tensors = GraphReferences()
     is_training = graph_mod == GraphMod.TRAIN
+
+    # Define the bottleneck size according to the selected model type
+    if self.model_type == "baseline":
+        bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE
+    elif self.model_type == "multi_resolution":
+        bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 5
+    elif self.model_type == "split_color_channel":
+        bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 3
+        
     if data_paths:
       tensors.keys, tensors.examples = util.read_examples(
           data_paths,
@@ -310,16 +332,7 @@ class Model(object):
       # For training, we use pre-processed data, so it is not needed.
         
       # Split the embeddings according to the selected model type
-      if self.model_type == "baseline":
-          embeddings = inception_embeddings
-      elif self.model_type == "multi_resolution":
-        splits = tf.split(inception_embeddings,
-                          num_or_size_splits=5, axis=0)
-        embeddings = tf.concat(splits, axis=1)
-      elif self.model_type == "split_color_channel":
-        splits = tf.split(inception_embeddings,
-                          num_or_size_splits=3, axis=0)
-        embeddings = tf.concat(splits, axis=1)
+      embeddings = tf.reshape(inception_embeddings, [-1, bottleneck_tensor_size])
         
       tensors.input_png = inception_input
     else:
@@ -381,14 +394,6 @@ class Model(object):
                 parsed['emb_low_res_ggg'],
                 parsed['emb_low_res_bbb']],
                 axis=1)
-
-    # Define the bottleneck size according to the selected model type
-    if self.model_type == "baseline":
-        bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE
-    elif self.model_type == "multi_resolution":
-        bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 5
-    elif self.model_type == "split_color_channel":
-        bottleneck_tensor_size = BOTTLENECK_TENSOR_SIZE * 3
         
     # We assume a default label, so the total number of labels is equal to
     # label_count+1.
