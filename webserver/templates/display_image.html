@@ -52,7 +52,10 @@
             class="underlay" style="outline: 4px solid" >
          <img src="{{  url_for('static', filename='similar_images/' + image_name + '_mask.png') }}"
             class="overlay" style="outline: 4px solid" id="overlay_img">
-        </div>
+	</div>
+	<div style="position: relative; top:700px">
+	  <a onclick="window.history.back()" class="btn btn-info">Back</a>
+	</div>
     </div>
 </div>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
