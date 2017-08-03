@@ -56,6 +56,7 @@ import logging
 import os
 import subprocess
 import sys
+import dill
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -66,6 +67,7 @@ try:
     from apache_beam.utils.pipeline_options import PipelineOptions
 except ImportError:
   from apache_beam.utils.options import PipelineOptions
+from apache_beam.io.tfrecordio import ReadFromTFRecord
 from PIL import Image
 import tensorflow as tf
 
@@ -188,7 +190,6 @@ class ReadImageAndConvertToJpegDoFn(beam.DoFn):
     image_bytes = output.getvalue()
     yield uri, label_ids, image_bytes
 
-
 class EmbeddingsGraph(object):
   """Builds a graph and uses it to extract embeddings from images.
   """
@@ -226,8 +227,9 @@ class EmbeddingsGraph(object):
     """
 
     input_jpeg = tf.placeholder(tf.string, shape=None)
-    image = tf.image.decode_jpeg(input_jpeg, channels=self.CHANNELS)
-
+    image = tf.decode_raw(input_jpeg, tf.uint8)
+    image = tf.reshape(image,[self.HEIGHT,self.WIDTH,self.CHANNELS])
+    #tf.Print(tf.shape(image))
     # Note resize expects a batch_size, but we are feeding a single image.
     # So we have to expand then squeeze.  Resize returns float32 in the
     # range [0, uint8_max]
@@ -296,6 +298,9 @@ class TFExampleFromImageDoFn(beam.DoFn):
   """
 
   def __init__(self):
+    #import pip
+    #from subprocess import call
+    #call('pip install --upgrade tensorflow', shell = True) #decode_raw is not part of tf 1.0
     self.tf_session = None
     self.graph = None
     self.preprocess_graph = None
@@ -319,39 +324,96 @@ class TFExampleFromImageDoFn(beam.DoFn):
     def _float_feature(value):
       return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
+    def _int64_feature(value):
+      return tf.train.Feature(float_list=tf.train.Int64List(value=[value]))
+
+
     try:
       element = element.element
     except AttributeError:
       pass
-    uri, label_ids, image_bytes = element
-
     try:
-      embedding = self.preprocess_graph.calculate_embedding(image_bytes)
+      features = tf.parse_single_example(
+            element,
+            features={
+                'crop_top_left': tf.FixedLenFeature([], tf.string),
+                'crop_top_right': tf.FixedLenFeature([], tf.string),
+                'crop_bottom_left': tf.FixedLenFeature([], tf.string),
+                'crop_bottom_right': tf.FixedLenFeature([], tf.string),
+                'image_low_res': tf.FixedLenFeature([], tf.string),
+                'x': tf.FixedLenFeature([], tf.int64),
+                'y': tf.FixedLenFeature([], tf.int64),
+                'area': tf.FixedLenFeature([], tf.int64),
+                'area_a': tf.FixedLenFeature([], tf.int64),
+                'area_b': tf.FixedLenFeature([], tf.int64),
+                'area_c': tf.FixedLenFeature([], tf.int64),
+                'area_d': tf.FixedLenFeature([], tf.int64),
+                'image_name': tf.FixedLenFeature([], tf.string),
+                'label': tf.FixedLenFeature([], tf.int64)
+            })
+
+      crop_top_left = features['crop_top_left']
+      crop_top_right=features['crop_top_right']
+      crop_bottom_left=features['crop_bottom_left']
+      crop_bottom_right=features['crop_bottom_right']
+      image_low_res=features['image_low_res']
+      x=features['x']
+      y=features['y']
+      area=features['area']
+      area_a=features['area_a']
+      area_b=features['area_b']
+      area_c=features['area_c']
+      area_d=features['area_d']
+      image_name=features['image_name']
+      label=features['label']
     except errors.InvalidArgumentError as e:
       incompatible_image.inc()
-      logging.warning('Could not encode an image from %s: %s', uri, str(e))
+      logging.warning('Could not decode original tfrecord: %s', str(e))
+      return
+    try:
+      embedding_top_left = self.preprocess_graph.calculate_embedding(crop_top_left.eval())
+      embedding_top_right = self.preprocess_graph.calculate_embedding(crop_top_right.eval())
+      embedding_bottom_left = self.preprocess_graph.calculate_embedding(crop_bottom_left.eval())
+      embedding_bottom_right = self.preprocess_graph.calculate_embedding(crop_bottom_right.eval())
+      embedding_low_res = self.preprocess_graph.calculate_embedding(image_low_res.eval())
+    except errors.InvalidArgumentError as e:
+      incompatible_image.inc()
+      logging.warning('Could not encode an image from %s: %s', image_name, str(e))
       return
 
-    if embedding.any():
+    if embedding_low_res.any():
       embedding_good.inc()
     else:
       embedding_bad.inc()
 
     example = tf.train.Example(features=tf.train.Features(feature={
-        'image_uri': _bytes_feature([uri]),
-        'embedding': _float_feature(embedding.ravel().tolist()),
+        'emb_top_left': _float_feature(embedding_top_left.ravel().tolist()),
+        'emb_top_right': _float_feature(embedding_top_right.ravel().tolist()), 
+        'emb_bottom_left': _float_feature(embedding_bottom_left.ravel().tolist()), 
+        'emb_bottom_right': _float_feature(embedding_bottom_right.ravel().tolist()), 
+        'emb_low_res': _float_feature(embedding_low_res.ravel().tolist()), 
+        'x': _float_feature([x.eval()]), 
+        'y': _float_feature([y.eval()]), 
+        'area': _float_feature([area.eval()]),
+        'area_a': _float_feature([area_a.eval()]),
+        'area_b': _float_feature([area_b.eval()]),
+        'area_c': _float_feature([area_c.eval()]),
+        'area_d': _float_feature([area_d.eval()]),
+        'image_name': _bytes_feature([image_name.eval()]),
+        'label': _float_feature([label.eval()]),
     }))
 
-    if label_ids:
-      label_ids.sort()
-      example.features.feature['label'].int64_list.value.extend(label_ids)
+    #if label_ids:
+    #  label_ids.sort()
+    #  example.features.feature['label'].int64_list.value.extend(label_ids)
 
     yield example
 
 
 def configure_pipeline(p, opt):
   """Specify PCollection and transformations in pipeline."""
-  read_input_source = beam.io.ReadFromText(
+  """
+    read_input_source = beam.io.ReadFromText(
       opt.input_path, strip_trailing_newlines=True)
   read_label_source = beam.io.ReadFromText(
       opt.input_dict, strip_trailing_newlines=True)
@@ -368,6 +430,17 @@ def configure_pipeline(p, opt):
        | 'Save to disk'
        >> beam.io.WriteToTFRecord(opt.output_path,
                                   file_name_suffix='.tfrecord.gz'))
+  """
+  read_input_source = ReadFromTFRecord(opt.input_path)
+  print("start")  
+  _ = (p
+       | 'Read input' >> read_input_source
+       | 'Read and Embed and make TFExample' >> beam.ParDo(TFExampleFromImageDoFn())
+       | 'SerializeToString' >> beam.Map(lambda x: x.SerializeToString())
+       | 'Save to disk'
+       >> beam.io.WriteToTFRecord(opt.output_path,
+                                  file_name_suffix='.tfrecord.gz'))
+  
 
 
 def run(in_args=None):
@@ -377,7 +450,62 @@ def run(in_args=None):
   with beam.Pipeline(options=pipeline_options) as p:
     configure_pipeline(p, in_args)
 
+"""
+def default_args(argv):
+  parser = argparse.ArgumentParser()
 
+  parser.add_argument(
+      '--input_path',
+      required=True,
+      help='Input specified as uri to TFRecord file.')
+  parser.add_argument(
+      '--output_path',
+      required=True,
+      help='Output directory to write results to.')
+  parser.add_argument(
+      '--project',
+      type=str,
+      help='The cloud project name to be used for running this pipeline')
+
+  parser.add_argument(
+      '--job_name',
+      type=str,
+      default='flowers-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S'),
+      help='A unique job identifier.')
+  parser.add_argument(
+      '--num_workers', default=20, type=int, help='The number of workers.')
+  parser.add_argument('--cloud', default=False, action='store_true')
+  parser.add_argument(
+      '--runner',
+      help='See Dataflow runners, may be blocking'
+      ' or not, on cloud or not, etc.')
+
+  parsed_args, _ = parser.parse_known_args(argv)
+
+  if parsed_args.cloud:
+    # Flags which need to be set for cloud runs.
+    default_values = {
+        'project':
+            get_cloud_project(),
+        'temp_location':
+            os.path.join(os.path.dirname(parsed_args.output_path), 'temp'),
+        'runner':
+            'DataflowRunner',
+        'save_main_session':
+            True,
+    }
+  else:
+    # Flags which need to be set for local runs.
+    default_values = {
+        'runner': 'DirectRunner',
+    }
+
+  for kk, vv in default_values.iteritems():
+    if kk not in parsed_args or not vars(parsed_args)[kk]:
+      vars(parsed_args)[kk] = vv
+
+  return parsed_args
+"""
 def default_args(argv):
   """Provides default values for Workflow flags."""
   parser = argparse.ArgumentParser()

@@ -47,22 +47,17 @@
 </nav>
 <div class="container">
     <div class="starter-template">
-        <h1>Your recommendation</h1>
-        <br/>
-        <p class=lead style="color: {{ border_color}};"><b>{{ label }}</b> With a score of <strong>{{ score }}</strong>,
-            we're {% if score | float > 0.7 %}
-            pretty
-            {% else %}
-            somewhat
-            {% endif %} sure.</p>
-        <br/>
-        <img class="img-responsive" src="{{ url_for('static', filename=filename) }}"
-             style="outline: 10px solid {{ border_color }}">
-        <br/>
-        <a href="{{ url_for('show_similar_images', image_list=image_list)}}" class="btn btn-info">Similar Images</a>
-
+        <h1>Similar Images</h1>
+        {% for image in image_list %}
+            <div class="floated_img">
+                <a href="{{ url_for('display_image', image_name=image)}}">
+                    <img src="{{  url_for('static', filename='similar_images/' + image + '_full.png') }}"
+                     class="img-responsive" width="299" height="299"
+                     style="outline: 4px solid" >
+                </a>
+            </div>
+        {% endfor %}
     </div>
-</div>
 </div>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 </body>

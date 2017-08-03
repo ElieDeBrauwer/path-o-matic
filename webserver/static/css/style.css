@@ -23,3 +23,32 @@ img {
 	max-height: 700px;
 	max-width: 700px;
 }
+
+.floated_img {
+    float: left;
+    position:relative;
+    padding-right: 20px;
+    padding-top: 20px;
+}
+
+.combo_box {
+    position:relative;
+}
+
+.underlay {
+    position:absolute;
+    left:0px;
+    top:0px;
+    z-index:0;
+}
+.overlay {
+    position:absolute;
+    opacity: 0.0;
+    left:0px;
+    top:0px;
+    z-index:1;
+}
+
+.overlay:active {
+    opacity: 0.5;
+}
