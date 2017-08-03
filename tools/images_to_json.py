@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,28 +48,21 @@ def parse_args():
   parser.add_argument('-r', '--resize', dest='resize', action='store_true',
                       help='Will resize images locally first.  Not needed, but'
                       ' will reduce network traffic.')
-  parser.add_argument('-t', '--img_type', default='PNG', type=str,
-                      choices=['JPEG', 'PNG'], help='Defines the image type.')
   parser.add_argument('inputs', nargs='+', type=argparse.FileType('r'),
-                      help='A list of .jpg, .jpeg or .png files to serialize '
-                      'into a request json')
+                      help='A list of .jpg or .jpeg files to serialize into a '
+                      'request json')
 
   args = parser.parse_args()
 
-  if args.img_type == 'PNG':
-    file_types = ('png',)
-  else:
-    file_types = ('jpeg', 'jpg')
-
-  check = lambda filename: filename.lower().endswith(file_types)
+  check = lambda filename: filename.lower().endswith(('jpeg', 'jpg'))
   if not all(check(input_file.name) for input_file in args.inputs):
-    sys.stderr.write('All inputs must be .jpeg or .jpg or .png')
+    sys.stderr.write('All inputs must be .jpeg or .jpg')
     sys.exit(1)
 
   return args
 
 
-def make_request_json(input_images, output_json, do_resize, img_type):
+def make_request_json(input_images, output_json, do_resize):
   """Produces a JSON request suitable to send to CloudML Prediction API.
 
   Args:
@@ -87,7 +82,7 @@ def make_request_json(input_images, output_json, do_resize, img_type):
       if do_resize and is_too_big:
         image = image.resize((299, 299), Image.BILINEAR)
 
-      image.save(resized_handle, format=img_type)
+      image.save(resized_handle, format='JPEG')
       encoded_contents = base64.b64encode(resized_handle.getvalue())
 
       # key can be any UTF-8 string, since it goes in a HTTP request.
@@ -102,7 +97,7 @@ def make_request_json(input_images, output_json, do_resize, img_type):
 
 def main():
   args = parse_args()
-  make_request_json(args.inputs, args.output, args.resize, args.img_type)
+  make_request_json(args.inputs, args.output, args.resize)
 
 
 if __name__ == '__main__':

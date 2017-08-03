@@ -36,7 +36,7 @@ fi
 
 declare -r PROJECT=$(gcloud config list project --format "value(core.project)")
 declare -r JOB_ID="hugs_${USER}_${DATE}"
-declare -r DFJOB_ID="hugs-${DATE}"
+declare -r DFJOB_ID="hugs-`echo ${DATE} | sed 's/_/-/g'`"
 declare -r BUCKET=$1
 declare -r GCS_PATH="${BUCKET}/${USER}/${JOB_ID}"
 declare -r DICT_FILE=gs://oscon-tf-workshop-materials/transfer_learning/cloudml/hugs_photos/dict.txt
@@ -81,7 +81,6 @@ python trainer/preprocess.py \
   --num_workers 20 \
   --cloud \
   --requirements_file requirements.txt
-  
 
 set +v
 echo

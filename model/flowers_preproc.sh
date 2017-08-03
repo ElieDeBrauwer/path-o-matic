@@ -36,7 +36,7 @@ fi
 
 declare -r PROJECT=$(gcloud config list project --format "value(core.project)")
 declare -r JOB_ID="flowers_${USER}_${DATE}"
-declare -r DFJOB_ID="flowers-${DATE}"
+declare -r DFJOB_ID="flowers-`echo ${DATE} | sed 's/_/-/g'`"
 declare -r BUCKET=$1
 declare -r GCS_PATH="${BUCKET}/${USER}/${JOB_ID}"
 declare -r DICT_FILE=gs://cloud-ml-data/img/flower_photos/dict.txt
@@ -69,7 +69,7 @@ python trainer/preprocess.py \
   --input_path "gs://cloud-ml-data/img/flower_photos/eval_set.csv" \
   --output_path "${GCS_PATH}/preproc/eval" \
   --job_name "${DFJOB_ID}e" \
-  --num_workers 10 \
+  --num_workers 7 \
   --cloud
 
 python trainer/preprocess.py \
@@ -77,7 +77,7 @@ python trainer/preprocess.py \
   --input_path "gs://cloud-ml-data/img/flower_photos/train_set.csv" \
   --output_path "${GCS_PATH}/preproc/train" \
   --job_name "${DFJOB_ID}t" \
-  --num_workers 10 \
+  --num_workers 7 \
   --cloud
 
 set +v
