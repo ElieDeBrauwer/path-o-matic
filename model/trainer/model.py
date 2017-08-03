@@ -134,6 +134,7 @@ class GraphReferences(object):
     self.keys = None
     self.predictions = []
     self.input_png = None
+    self.embeddings = []
 
 
 class Model(object):
@@ -404,6 +405,7 @@ class Model(object):
     # interested only in the top score.
     prediction = tf.argmax(softmax, 1)
     tensors.predictions = [prediction, softmax, embeddings]
+    tensors.embeddings = embeddings
 
     if graph_mod == GraphMod.PREDICT:
       return tensors
@@ -489,10 +491,18 @@ class Model(object):
 
     # To extract the id, we need to add the identity function.
     keys = tf.identity(keys_placeholder)
+#    if self.model_type == "baseline":
+#        embedding_to_output = tensors.embeddings[0]
+#    elif self.model_type == "multi_resolution":
+#        embedding_to_output = tensors.embeddings[4]
+#    elif self.model_type == "split_color_channel":
+#        embedding_to_output = tensors.embeddings[0]
+        
     outputs = {
         'key': keys,
         'prediction': tensors.predictions[0],
-        'scores': tensors.predictions[1]
+        'scores': tensors.predictions[1],
+        'emb_low_res': tensors.embeddings
     }
 
     return inputs, outputs
