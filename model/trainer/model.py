@@ -495,19 +495,12 @@ class Model(object):
     }
 
     # To extract the id, we need to add the identity function.
-    keys = tf.identity(keys_placeholder)
-#    if self.model_type == "baseline":
-#        embedding_to_output = tensors.embeddings[0]
-#    elif self.model_type == "multi_resolution":
-#        embedding_to_output = tensors.embeddings[4]
-#    elif self.model_type == "split_color_channel":
-#        embedding_to_output = tensors.embeddings[0]
-        
+    keys = tf.identity(keys_placeholder)        
     outputs = {
         'key': keys,
         'prediction': tensors.predictions[0],
         'scores': tensors.predictions[1],
-        'emb_low_res': tensors.embeddings
+        'embeddings': tensors.embeddings
     }
 
     return inputs, outputs
