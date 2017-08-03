@@ -47,7 +47,10 @@
 </nav>
 <div class="container">
     <div class="starter-template">
-        <h1>Similar Images</h1>
+      <h1>Similar Images</h1>
+      	<div >
+	  <a onclick="window.history.back()" class="btn btn-info">Back</a>
+	</div>
         {% for image in image_list %}
             <div class="floated_img">
                 <a href="{{ url_for('display_image', image_name=image)}}">
