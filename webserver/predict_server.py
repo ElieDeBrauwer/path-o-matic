@@ -25,6 +25,7 @@ import argparse
 import base64
 from cStringIO import StringIO
 import os
+import pickle
 import sys
 
 import urllib2
@@ -47,8 +48,12 @@ ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'JPG', 'png', 'PNG'])
 args = None
 labels = None
 
+with open("embeddings.pickle", "rb") as file:
+    embeddings=pickle.load(file)
+    print "Loaded %s embeddings" % len(embeddings)
+
 sample_image_list='patient_009_node_1_00030_52048_143371,patient_009_node_1_00017_50450_144973,patient_004_node_4_00002_13092_87057,patient_012_node_0_00002_10284_94236'
-#sample_image_list='patient_009_node_1_00030_52048_143371'
+
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -68,7 +73,7 @@ def upload_file():
     if request.method == 'POST':
 
         file = request.files['file']
-        print file
+
         if file and allowed_file(file.filename):
             label, score = '', ''
 
@@ -93,11 +98,9 @@ def upload_file():
             result = get_prediction(ml_client, args.project,
                                     args.model_name, fname)
 
-            print result
             predictions = result['predictions']
-            print("predictions: %s" % predictions)
             prediction = predictions[0]
-            print("prediction: %s" % prediction)
+            print("prediction: %s" % prediction["scores"])
             label_idx = prediction['prediction']
             score = prediction['scores'][label_idx]
             label = labels[label_idx]
@@ -113,7 +116,7 @@ def upload_file():
 
 @app.route('/result')
 def show_result():
-    print "uploaded file"
+    print "show_result"
 
     filename = request.args['filename']
     label = request.args['label']
@@ -191,7 +194,6 @@ def get_direct_prediction(direct_url, username, password, filename):
     try:
         response = urllib2.urlopen(request, context=ssl._create_unverified_context())
         result = response.read()
-        print 'Prediction Response:', result
         rows = result.split('\n')
         last_row = rows[-1]
         prediction = last_row.split(':')
