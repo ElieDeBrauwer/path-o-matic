@@ -37,8 +37,8 @@ from PIL import Image
 from werkzeug import secure_filename
 
 
-desired_width = 299
-desired_height = 299
+desired_width = 598
+desired_height = 598
 
 UPLOAD_FOLDER = 'static'
 ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'JPG', 'png', 'PNG'])
@@ -93,6 +93,7 @@ def upload_file():
             result = get_prediction(ml_client, args.project,
                                     args.model_name, fname)
 
+            print result
             predictions = result['predictions']
             print("predictions: %s" % predictions)
             prediction = predictions[0]
@@ -219,7 +220,7 @@ def make_request_json(input_image):
     image = image.resize(
         (desired_width, desired_height), Image.BILINEAR)
 
-  image.save(resized_handle, format='JPEG')
+  image.save(resized_handle, format='PNG')
   encoded_contents = base64.b64encode(resized_handle.getvalue())
 
   image_json = {'key': input_image,
