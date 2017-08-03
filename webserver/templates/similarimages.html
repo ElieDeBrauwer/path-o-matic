@@ -53,8 +53,8 @@
 	</div>
         {% for image in image_list %}
             <div class="floated_img">
-                <a href="{{ url_for('display_image', image_name=image)}}">
-                    <img src="{{  url_for('static', filename='similar_images/' + image + '_full.png') }}"
+              <a href="{{ url_for('display_image', image_name=image)}}">
+		    <img src="{{ "http://storage.googleapis.com/path-o-matic/%s_low.png" % image  }}"
                      class="img-responsive" width="299" height="299"
                      style="outline: 4px solid" >
                 </a>
