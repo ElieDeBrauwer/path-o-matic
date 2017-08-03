@@ -17,7 +17,7 @@ def persist_embeddings(embeddings, output):
     """
     print("Writing embeddings to ", output)
     with open(output, 'wb') as file:
-        pickle.dump(embeddings, file)
+        pickle.dump(embeddings, file, protocol=2)
 
 
 def learn_image_name_from_gs(name, x, y):
@@ -65,8 +65,13 @@ def main():
 
     embeddings = []
     for file in args.input:
-        embeddings.append(extract_embeddings(file))
+        emb_file = extract_embeddings(file)
+        for e in emb_file:
+            embeddings.append(e)
+        print("Found %d embeddings in this file" % len(emb_file))
 
+
+    print("Found %d embeddings in total" % len(embeddings))
     persist_embeddings(embeddings, args.output)
     
 if __name__ == "__main__":

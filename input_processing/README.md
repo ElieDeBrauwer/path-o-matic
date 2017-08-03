@@ -12,3 +12,7 @@ The purpose of these scripts is to create mask files based on a data file and an
 ## crop-o-matic.py and crop-o-matic_runner.py
 
 Based upon the mask files, the data files and the annotations the crop-o-matic will create a tfrecord and some images. The runner performs this operation in bulk on an entire folder.
+
+## extract_embedding.py
+
+Takes the post-processd TFRecords (after the dataflow job) and creates a mini-database containing the filename, label and embeddings for the low resolution images in the dataset.
