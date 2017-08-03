@@ -66,24 +66,26 @@ set -v -e
 # if your project quota is sufficient to do so.
 python trainer/preprocess.py \
   --input_dict "$DICT_FILE" \
-  --input_path "gs://oscon-tf-workshop-materials/transfer_learning/cloudml/hugs_photos/eval_data.csv" \
-  --output_path "${GCS_PATH}/preproc/eval" \
+  --input_path "${BUCKET}/val/patient_*.tfrecord" \
+  --output_path "gs://asl_project/preproc/eval" \
   --job_name "${DFJOB_ID}e" \
-  --num_workers 7 \
+  --num_workers 20 \
   --cloud
+  --requirements_file requirements.txt
 
 python trainer/preprocess.py \
   --input_dict "$DICT_FILE" \
-  --input_path "gs://oscon-tf-workshop-materials/transfer_learning/cloudml/hugs_photos/train_data.csv" \
-  --output_path "${GCS_PATH}/preproc/train" \
+  --input_path "${BUCKET}/train/patient_*.tfrecord" \
+  --output_path "gs://asl_project/preproc/train" \
   --job_name "${DFJOB_ID}t" \
-  --num_workers 7 \
-  --cloud
+  --num_workers 20 \
+  --cloud \
+  --requirements_file requirements.txt
 
 set +v
 echo
 echo "Generated job id: " $JOB_ID
 echo "Using GCS_PATH: " $GCS_PATH
-echo "Using eval output path: " "${GCS_PATH}/preproc/eval"
-echo "Using train output path: " "${GCS_PATH}/preproc/train"
+echo "Using eval output path: " "gs://asl_project/preproc/eval"
+echo "Using train output path: " "gs://asl_project/preproc/train"
 echo "Dataflow jobs are running at ${DFJOB_ID}e and ${DFJOB_ID}t"
