@@ -516,12 +516,6 @@ def default_args(argv):
       help='Input specified as uri to CSV file. Each line of csv file '
       'contains colon-separated GCS uri to an image and labels.')
   parser.add_argument(
-      '--input_dict',
-      dest='input_dict',
-      required=True,
-      help='Input dictionary. Specified as text file uri. '
-      'Each line of the file stores one label.')
-  parser.add_argument(
       '--output_path',
       required=True,
       help='Output directory to write results to.')
