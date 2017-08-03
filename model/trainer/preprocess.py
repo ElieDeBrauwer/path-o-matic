@@ -537,6 +537,8 @@ def default_args(argv):
       help='A unique job identifier.')
   parser.add_argument(
       '--num_workers', default=20, type=int, help='The number of workers.')
+  parser.add_argument(
+      '--worker_machine_type', default='n1-standard-1', type=str, help='The type of workers.')
   parser.add_argument('--cloud', default=False, action='store_true')
   parser.add_argument(
       '--runner',
