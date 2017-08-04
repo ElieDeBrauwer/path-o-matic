@@ -24,12 +24,10 @@ See the README.md for how to start the server.
 import argparse
 import base64
 from cStringIO import StringIO
+import numpy as np
 import os
 import pickle
 import sys
-
-import urllib2
-import ssl
 
 from flask import Flask, redirect, render_template, request, url_for
 from googleapiclient import discovery
@@ -52,8 +50,6 @@ with open("embeddings.pickle", "rb") as file:
     embeddings=pickle.load(file)
     print "Loaded %s embeddings" % len(embeddings)
 
-sample_image_list='patient_009_node_1_00030_52048_143371,patient_009_node_1_00017_50450_144973,patient_004_node_4_00002_13092_87057,patient_012_node_0_00002_10284_94236'
-
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -65,6 +61,21 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 current_idx = 1
 
+def get_similar_images(pred_embeddings):
+    """
+    Get similar images based on the embeddings. Not this is not very
+    space efficients. A sliding window version would be more interesting.
+    """
+    input = np.array(pred_embeddings)
+    vals = []
+    for entry in embeddings:
+        cur = np.array(entry[2])
+        distance = np.sum(np.square(input - cur))
+        vals.append( (distance, entry[0]) )
+    vals.sort(key=lambda val: val[0])
+    res = '%s,%s,%s,%s,%s' % (vals[0][1][:-8], vals[1][1][:-8], vals[2][1][:-8], vals[3][1][:-8], vals[4][1][:-8])
+    print "Similar images:", res
+    return res
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
@@ -83,17 +94,7 @@ def upload_file():
                       filename))
             fname = "%s/%s" % (UPLOAD_FOLDER, filename)
 
-            # Use self hosted prediction server if configured
-            if args.direct_url and args.username and args.password:
-                label, score = get_direct_prediction(args.direct_url, args.username, args.password, fname)
-
-                return redirect(url_for('show_result',
-                                        filename=filename,
-                                        label=label,
-                                        score=score,
-                                        image_list=sample_image_list))
-
-            # Fall through to using Google's ML service for prediction
+            # Use Google's ML service for prediction
             ml_client = create_client()
             result = get_prediction(ml_client, args.project,
                                     args.model_name, fname)
@@ -104,12 +105,13 @@ def upload_file():
             label_idx = prediction['prediction']
             score = prediction['scores'][label_idx]
             label = labels[label_idx]
+            image_list = get_similar_images(prediction["embeddings"])
             print(label, score)
             return redirect(url_for('show_result',
                                     filename=filename,
                                     label=label,
                                     score=score,
-                                    image_list=sample_image_list))
+                                    image_list=image_list))
 
     return render_template('index.html')
 
@@ -179,38 +181,6 @@ def get_prediction(ml_service, project, model_name, input_image):
   result = request.execute()
   return result
 
-def get_direct_prediction(direct_url, username, password, filename):
-    with open(filename, 'rb') as file:
-        data = file.read()
-
-    request = urllib2.Request(direct_url, data)
-    request.add_header('Content-Type', 'application/octet-stream')
-    base64string = base64.b64encode('%s:%s' % (username, password))
-    request.add_header("Authorization", "Basic %s" % base64string)
-
-    label = 'Unknown'
-    score = '0'
-    print 'Predicting image:', filename 
-    try:
-        response = urllib2.urlopen(request, context=ssl._create_unverified_context())
-        result = response.read()
-        rows = result.split('\n')
-        last_row = rows[-1]
-        prediction = last_row.split(':')
-        prediction = eval(prediction[1])
-        prediction = prediction[0]
-        print 'Parsed Prediction:', prediction
-        # Odd numbers are deemed to be malign
-        if prediction % 2 == 1:
-            label = 'malignant'
-        else:
-            label = 'benign'
-    except urllib2.HTTPError as e:
-        error_message = e.read()
-        print 'Prediction server failed:', error_message
-    return label, score
-
-
 def make_request_json(input_image):
   """..."""
 
@@ -243,15 +213,6 @@ def parse_args():
   parser.add_argument(
       '--project', type=str, required=True,
       help=('The project name to use.'))
-  parser.add_argument(
-      '--direct_url', type=str,
-      help=('URL for self hosted prediction service'))
-  parser.add_argument(
-      '--username', type=str,
-      help=('Basic Auth username for self hosted prediction service'))
-  parser.add_argument(
-      '--password', type=str,
-      help=('Basic Auth password for self hosted prediction service'))
   parser.add_argument(
       '--port', type=int,
       help=('Specify port to run on (default 5000'))
