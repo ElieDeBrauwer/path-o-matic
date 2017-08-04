@@ -31,8 +31,8 @@ import sys
 
 from PIL import Image
 
-desired_width = 299
-desired_height = 299
+desired_width = 598
+desired_height = 598
 
 
 def parse_args():
@@ -84,7 +84,7 @@ def make_request_json(input_images, output_json, do_resize, img_type):
       is_too_big = ((image.size[0] * image.size[1]) >
                     (desired_width * desired_height))
       if do_resize and is_too_big:
-        image = image.resize((299, 299), Image.BILINEAR)
+        image = image.resize((desired_width, desired_height), Image.BILINEAR)
 
       image.save(resized_handle, format=img_type)
       encoded_contents = base64.b64encode(resized_handle.getvalue())
