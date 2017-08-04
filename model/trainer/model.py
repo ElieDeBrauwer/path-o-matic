@@ -248,11 +248,8 @@ class Model(object):
                              image, height, width, height, width) 
         
         # The low-resolution image
-        img_low_res = tf.cast(
-                tf.image.crop_and_resize(
-                    image, boxes=[[0.0, 0.0, 1.0, 1.0]],
-                    box_ind=[0], crop_size=[height, width]
-                ), dtype=tf.uint8)
+        img_low_res = tf.cast(tf.image.resize_bilinear(
+            image, [height, width], align_corners=False), dtype=tf.uint8)
         
         # Concatenate into the batch dimension
         image = tf.concat([
