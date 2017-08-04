@@ -106,7 +106,7 @@ def upload_file():
             label_idx = prediction['prediction']
             score = prediction['scores'][label_idx]
             label = labels[label_idx]
-            image_list = get_similar_images(prediction["embeddings"])
+            image_list = get_similar_images(prediction["embeddings"][-2048:])
             print(label, score)
             return redirect(url_for('show_result',
                                     filename=filename,
