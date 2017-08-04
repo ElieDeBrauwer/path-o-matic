@@ -73,6 +73,7 @@ def get_similar_images(pred_embeddings):
         distance = np.sum(np.square(input - cur))
         vals.append( (distance, entry[0]) )
     vals.sort(key=lambda val: val[0])
+    print vals[:5]
     res = '%s,%s,%s,%s,%s' % (vals[0][1][:-8], vals[1][1][:-8], vals[2][1][:-8], vals[3][1][:-8], vals[4][1][:-8])
     print "Similar images:", res
     return res
