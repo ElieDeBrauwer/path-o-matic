@@ -1,0 +1,11 @@
+trainingInput:
+  hyperparameters:
+    goal: MAXIMIZE
+    maxTrials: 10
+    maxParallelTrials: 2
+    params:
+    - parameterName: batch_size
+      type: INTEGER
+      minValue: 50
+      maxValue: 200
+      scaleType: UNIT_LINEAR_SCALE

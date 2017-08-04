@@ -428,6 +428,7 @@ class Model(object):
     if not is_training:
       tf.summary.scalar('accuracy', accuracy_op)
       tf.summary.scalar('loss', loss_op)
+      tf.summary.scalar('training/hptuning/metric', accuracy_op)
 
     tensors.metric_updates = loss_updates + accuracy_updates
     tensors.metric_values = [loss_op, accuracy_op]
