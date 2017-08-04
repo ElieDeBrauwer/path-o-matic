@@ -62,7 +62,7 @@ set -e
 # This will give an error if the version name already exists.
 gcloud ml-engine versions create "$VERSION_NAME" \
   --model "$MODEL_NAME" \
-  --origin "${GCS_PATH}/training/model"
+  --origin "${GCS_PATH}/model"
 
 # Models do not need a default version, but it's a great way to move
 # your production
