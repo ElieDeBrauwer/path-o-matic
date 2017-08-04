@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 # Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,10 +56,7 @@ def parse_args():
 
   args = parser.parse_args()
 
-  if args.img_type == 'PNG':
-    file_types = ('png',)
-  else:
-    file_types = ('jpeg', 'jpg')
+  file_types = ('jpeg', 'jpg', 'png')
 
   check = lambda filename: filename.lower().endswith(file_types)
   if not all(check(input_file.name) for input_file in args.inputs):
