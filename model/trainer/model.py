@@ -38,6 +38,7 @@ LOGITS_TENSOR_NAME = 'logits_tensor'
 IMAGE_URI_COLUMN = 'image_name'
 LABEL_COLUMN = 'label'
 EMBEDDING_COLUMN = 'embedding'
+WEIGHT_DECAY =  0.001
 
 # The 'hugs' dataset uses 2 labels.  The 'flowers' dataset uses 5.
 LABEL_COUNT = 2  # for 'hugs'
@@ -87,6 +88,7 @@ def create_model():
   # during preprocessing.
   parser.add_argument('--label_count', type=int, default=LABEL_COUNT)
   parser.add_argument('--dropout', type=float, default=0.5)
+  parser.add_argument('--weight_decay', type=float, default=0.01)
   parser.add_argument(
       '--inception_checkpoint_file',
       type=str,
@@ -119,7 +121,7 @@ def create_model():
   override_if_not_in_args('--min_train_eval_rate', '2', task_args)
   return Model(args.label_count, args.dropout,
                args.inception_checkpoint_file,
-               args.model_type), task_args
+               args.model_type, args.weight_decay), task_args
 
 
 class GraphReferences(object):
@@ -141,11 +143,12 @@ class Model(object):
   """TensorFlow model for an image classification problem."""
 
   def __init__(self, label_count, dropout, inception_checkpoint_file,
-              model_type):
+              model_type, weight_decay):
     self.label_count = label_count
     self.dropout = dropout
     self.inception_checkpoint_file = inception_checkpoint_file
     self.model_type = model_type
+    self.weight_decay = weight_decay
 
   def add_final_training_ops(self,
                              embeddings,
@@ -413,7 +416,7 @@ class Model(object):
       return tensors
 
     with tf.name_scope('evaluate'):
-      loss_value = loss(logits, labels)
+      loss_value = self.loss(logits, labels)
 
     # Add to the Graph the Ops that calculate and apply gradients.
     if is_training:
@@ -543,20 +546,23 @@ class Model(object):
 
     return '%s, %s' % (loss_str, accuracy_str)
 
+  def loss(self,logits, labels):
+      """Calculates the loss from the logits and the labels.
 
-def loss(logits, labels):
-  """Calculates the loss from the logits and the labels.
-
-  Args:
-    logits: Logits tensor, float - [batch_size, NUM_CLASSES].
-    labels: Labels tensor, int32 - [batch_size].
-  Returns:
-    loss: Loss tensor of type float.
-  """
-  labels = tf.to_int64(labels)
-  cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-      logits=logits, labels=labels, name='xentropy')
-  return tf.reduce_mean(cross_entropy, name='xentropy_mean')
+      Args:
+        logits: Logits tensor, float - [batch_size, NUM_CLASSES].
+        labels: Labels tensor, int32 - [batch_size].
+      Returns:
+        loss: Loss tensor of type float.
+      """
+      labels = tf.to_int64(labels)
+      cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+          logits=logits, labels=labels, name='xentropy')
+      mean_loss = tf.reduce_mean(cross_entropy, name='xentropy_mean')
+      trainable_vars = tf.trainable_variables()
+      regularisation = tf.add_n([ tf.nn.l2_loss(v) for v in trainable_vars
+                        if 'bias' not in v.name ]) 
+      return mean_loss + self.weight_decay*regularisation
 
 
 def training(loss_op):
